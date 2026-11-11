@@ -1,0 +1,746 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Droplet Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;700&family=Barlow+Semi+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* Layout: full-bleed dark sections over SEM imagery (the user's template), one live instrument panel in the middle. Single dark look by design. */
+  :root {
+    --bg: #000;
+    --panel: #0b0d12;
+    --fg: #f0f0fa;
+    --muted: rgba(240,240,250,.68);
+    --faint: rgba(240,240,250,.14);
+    --line: rgba(240,240,250,.6);
+    --btn-bg: rgba(0,0,0,.5);
+    --accent: #8fd3ff;          /* water blue, used for the model line and live values */
+    --band: rgba(143,211,255,.22);
+    --warn: #f2b45a;
+    --ok: #7fd7a6;
+    --font-body: "Barlow", Arial, Verdana, sans-serif;
+    --font-head: "Barlow Semi Condensed", "Arial Narrow", Arial, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    --gutter: clamp(16px, 4vw, 48px);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; animation: none !important; } }
+  body { background: var(--bg); color: var(--fg); font-family: var(--font-body); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  a { color: inherit; text-decoration: none; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  /* Header */
+  .header { position: fixed; inset: 0 0 auto; z-index: 50; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: calc(18px + env(safe-area-inset-top, 0px)) var(--gutter) 18px; background: linear-gradient(rgba(0,0,0,.75), transparent); }
+  .logo { font-family: var(--font-head); font-weight: 700; font-size: 20px; letter-spacing: .32em; white-space: nowrap; }
+  .nav-desktop { display: flex; gap: 28px; }
+  .nav-desktop a { font-family: var(--font-head); font-weight: 700; font-size: 14px; letter-spacing: .04em; text-transform: uppercase; position: relative; }
+  .nav-desktop a::after { content: ""; position: absolute; left: 0; bottom: -6px; width: 0; height: 2px; background: var(--fg); transition: width .25s; }
+  .nav-desktop a:hover::after { width: 100%; }
+  .burger { background: none; border: 0; cursor: pointer; width: 28px; height: 20px; display: flex; flex-direction: column; justify-content: space-between; }
+  .burger span { display: block; height: 2px; background: var(--fg); }
+  .drawer { position: fixed; top: 0; right: 0; height: 100%; width: min(360px, 100%); background: var(--bg); z-index: 60; padding: 90px 40px; transform: translateX(100%); transition: transform .35s ease; border-left: 1px solid var(--faint); }
+  .drawer.open { transform: none; }
+  .drawer a { display: block; padding: 14px 0; border-bottom: 1px solid var(--faint); font-family: var(--font-head); font-weight: 700; text-transform: uppercase; font-size: 15px; letter-spacing: .04em; }
+  .drawer .close { position: absolute; top: 24px; right: 24px; background: none; border: 0; color: var(--fg); font-size: 28px; cursor: pointer; }
+
+  /* Sections */
+  .section { position: relative; display: flex; align-items: flex-end; padding: 140px var(--gutter) 12vh; overflow: hidden; isolation: isolate; }
+  .section.tall { min-height: min(100vh, 860px); }
+  .media { position: absolute; inset: 0; z-index: -1; background-size: cover; background-position: center; background-color: var(--panel); }
+  .media::after { content: ""; position: absolute; inset: 0; background: linear-gradient(rgba(0,0,0,.35), rgba(0,0,0,.55) 45%, rgba(0,0,0,.92)); }
+  .content { max-width: 600px; min-width: 0; }
+  .eyebrow { font-family: var(--font-mono); font-size: 13px; letter-spacing: .04em; margin-bottom: 10px; text-transform: uppercase; color: var(--muted); }
+  h1, h2 { font-family: var(--font-head); font-weight: 700; text-transform: uppercase; line-height: 1; letter-spacing: -1px; text-wrap: balance; }
+  h1 { font-size: clamp(40px, 7vw, 76px); }
+  h2 { font-size: clamp(32px, 5.5vw, 60px); margin-bottom: 18px; }
+  .content p, .lede { font-size: 17px; line-height: 1.55; color: var(--muted); max-width: 62ch; }
+  .content p { margin-bottom: 28px; }
+  .content p.tight { margin-bottom: 0; }
+  .btns { display: flex; flex-wrap: wrap; gap: 14px; }
+  .btn { display: inline-block; position: relative; overflow: hidden; padding: 16px 34px; border: 2px solid var(--line); background: var(--btn-bg); color: var(--fg); font-family: var(--font-head); font-weight: 700; font-size: 14px; letter-spacing: .08em; text-transform: uppercase; transition: color .3s; isolation: isolate; cursor: pointer; }
+  .btn::before { content: ""; position: absolute; inset: 0; background: var(--fg); transform: translateY(101%); transition: transform .3s ease; z-index: -1; }
+  .btn:hover { color: var(--bg); }
+  .btn:hover::before { transform: none; }
+  .hero h1 { margin-bottom: 20px; }
+  .hero .content p { margin-bottom: 30px; }
+
+  /* Hero side card (template's "upcoming" widget) */
+  .card { position: absolute; right: var(--gutter); bottom: 12vh; width: 310px; background: rgba(0,0,0,.6); backdrop-filter: blur(8px); border: 1px solid var(--faint); padding: 18px; }
+  .card h3 { font-family: var(--font-head); font-size: 14px; letter-spacing: .06em; margin-bottom: 8px; }
+  .card .item { display: flex; gap: 14px; align-items: center; padding: 11px 0; border-top: 1px solid var(--faint); }
+  .card .val { width: 70px; flex: none; font-family: var(--font-head); font-weight: 700; font-size: 24px; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .card strong { display: block; font-size: 14px; }
+  .card small { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+  .card .all { display: block; margin-top: 10px; font-family: var(--font-head); font-weight: 700; font-size: 12px; letter-spacing: .06em; }
+
+  /* Plain (non-image) sections */
+  .plain { display: block; padding: 120px var(--gutter) 100px; border-top: 1px solid var(--faint); }
+  .plain > .inner { max-width: 1180px; margin: 0 auto; display: grid; gap: 40px; }
+  .head-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; align-items: end; }
+  .head-row h2 { margin-bottom: 0; }
+
+  /* Predictor */
+  .lab { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 0; border: 1px solid var(--faint); background: var(--panel); }
+  .controls { padding: 26px; border-right: 1px solid var(--faint); display: grid; gap: 18px; align-content: start; }
+  .field { display: grid; gap: 8px; }
+  .field label, .lbl { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  select, input[type=number] { width: 100%; background: var(--bg); color: var(--fg); border: 1px solid var(--faint); padding: 11px 12px; font: 500 15px var(--font-body); border-radius: 0; }
+  select:focus, input:focus { border-color: var(--line); outline: none; }
+  .vrow { display: grid; grid-template-columns: minmax(0, 1fr) 90px; gap: 12px; align-items: center; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .note { font-size: 12px; line-height: 1.5; color: var(--muted); }
+  .readout { padding: 26px; display: grid; gap: 22px; min-width: 0; }
+  .big { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 36px; }
+  .beta { font-family: var(--font-head); font-weight: 700; font-size: clamp(64px, 10vw, 112px); line-height: .85; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .beta small { display: block; font-family: var(--font-mono); font-size: 12px; font-weight: 400; color: var(--muted); letter-spacing: .04em; margin-bottom: 10px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 0; border-top: 1px solid var(--faint); border-left: 1px solid var(--faint); }
+  .stats div { padding: 12px 14px; border-right: 1px solid var(--faint); border-bottom: 1px solid var(--faint); min-width: 0; }
+  .stats b { display: block; font-family: var(--font-mono); font-size: 11px; font-weight: 400; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
+  .stats span { font-family: var(--font-head); font-weight: 700; font-size: 20px; font-variant-numeric: tabular-nums; }
+  .chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid currentColor; font-family: var(--font-mono); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  .chip::before { content: ""; width: 8px; height: 8px; background: currentColor; }
+  .chip.ok { color: var(--ok); } .chip.warn { color: var(--warn); }
+  .reasons { font-size: 13px; line-height: 1.5; color: var(--warn); padding-left: 18px; }
+  .chart svg { width: 100%; height: auto; display: block; }
+  .err { color: var(--warn); font-size: 14px; }
+
+  /* Bars */
+  .bars { display: grid; gap: 10px; }
+  .bar { display: grid; grid-template-columns: minmax(0, 190px) minmax(0, 1fr) 64px; gap: 14px; align-items: center; font-size: 14px; }
+  .bar .track { height: 12px; background: var(--faint); position: relative; }
+  .bar .fill { position: absolute; inset: 0 auto 0 0; background: var(--muted); }
+  .bar.hi .fill { background: var(--accent); }
+  .bar.hi { font-weight: 700; }
+  .bar .num { font-family: var(--font-mono); font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+  .bar .mark { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--fg); }
+  .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; }
+  .panel-title { font-family: var(--font-head); font-weight: 700; font-size: 18px; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 16px; }
+
+  /* SEM gallery */
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .tile { position: relative; aspect-ratio: 1.36; max-width: 100%; background: var(--panel) center/cover; border: 1px solid var(--faint); cursor: pointer; text-align: left; color: var(--fg); padding: 0; font: inherit; overflow: hidden; }
+  .tile::after { content: ""; position: absolute; inset: 0; background: linear-gradient(transparent 45%, rgba(0,0,0,.85)); }
+  .tile span { position: absolute; left: 10px; bottom: 8px; z-index: 1; font-family: var(--font-head); font-weight: 700; font-size: 16px; letter-spacing: .04em; }
+  .tile small { display: block; font-family: var(--font-mono); font-weight: 400; font-size: 11px; color: var(--muted); }
+  .tile:hover, .tile.on { border-color: var(--accent); }
+
+  /* Method steps */
+  .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--faint); }
+  .step { padding: 24px 24px 0 0; display: grid; gap: 10px; align-content: start; }
+  .step .k { font-family: var(--font-mono); font-size: 12px; color: var(--accent); }
+  .step h3 { font-family: var(--font-head); font-size: 22px; text-transform: uppercase; }
+  .step p { font-size: 15px; line-height: 1.55; color: var(--muted); }
+  .formula { font-family: var(--font-mono); font-size: 13px; color: var(--fg); }
+
+  /* Workspace additions */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0; border-top: 1px solid var(--faint); border-left: 1px solid var(--faint); }
+  .tile-m { padding: 20px; border-right: 1px solid var(--faint); border-bottom: 1px solid var(--faint); display: grid; gap: 6px; }
+  .tile-m b { font-family: var(--font-mono); font-size: 11px; font-weight: 400; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .tile-m span { font-family: var(--font-head); font-weight: 700; font-size: 40px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .tile-m.lead span { color: var(--accent); }
+  .tile-m small { font-size: 13px; color: var(--muted); }
+  .tbl { overflow-x: auto; border: 1px solid var(--faint); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+  th { font-family: var(--font-mono); font-size: 11px; font-weight: 400; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--faint); white-space: nowrap; }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--faint); white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td.sel { color: var(--accent); font-weight: 700; }
+  .filters { display: flex; flex-wrap: wrap; gap: 14px; align-items: end; }
+  .filters .field { min-width: 160px; }
+  .pager { display: flex; gap: 12px; align-items: center; font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
+  .btn.sm { padding: 10px 20px; font-size: 12px; }
+  .btn[disabled] { opacity: .4; cursor: default; }
+  .compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0; border-top: 1px solid var(--faint); border-left: 1px solid var(--faint); }
+  .compare div { padding: 12px 14px; border-right: 1px solid var(--faint); border-bottom: 1px solid var(--faint); }
+  .compare b { display: block; font-family: var(--font-mono); font-size: 11px; font-weight: 400; color: var(--muted); text-transform: uppercase; }
+  .compare span { font-family: var(--font-head); font-weight: 700; font-size: 22px; }
+  .compare small { display: block; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+  .semviews { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .semviews figure { display: grid; gap: 8px; }
+  .semviews img { width: 100%; aspect-ratio: 1.36; object-fit: cover; border: 1px solid var(--faint); background: var(--panel); }
+  .semviews figcaption { font-family: var(--font-mono); font-size: 11px; color: var(--muted); text-transform: uppercase; }
+  .flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--faint); border-left: 1px solid var(--faint); }
+  .flow div { padding: 18px; border-right: 1px solid var(--faint); border-bottom: 1px solid var(--faint); display: grid; gap: 6px; align-content: start; }
+  .flow b { font-family: var(--font-mono); font-size: 11px; font-weight: 400; color: var(--accent); text-transform: uppercase; letter-spacing: .04em; }
+  .flow span { font-family: var(--font-head); font-weight: 700; font-size: 18px; text-transform: uppercase; }
+  .flow small { font-size: 13px; color: var(--muted); line-height: 1.45; }
+  .list { display: grid; gap: 10px; font-size: 15px; line-height: 1.5; color: var(--muted); padding-left: 18px; }
+  pre.code { font-family: var(--font-mono); font-size: 13px; line-height: 1.7; background: var(--panel); border: 1px solid var(--faint); padding: 16px 18px; overflow-x: auto; }
+  @media (max-width: 900px) { .flow { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .semviews { grid-template-columns: minmax(0, 1fr); } }
+
+  /* Upload section */
+  .drop { display: grid; gap: 8px; place-items: center; text-align: center; padding: 28px 16px; border: 2px dashed var(--line); background: var(--bg); cursor: pointer; transition: border-color .2s, background .2s; }
+  .drop:hover, .drop.over { border-color: var(--accent); background: rgba(143,211,255,.06); }
+  .drop strong { font-family: var(--font-head); font-size: 18px; text-transform: uppercase; letter-spacing: .04em; }
+  .drop span { font-size: 13px; color: var(--muted); }
+  .drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .samples { display: flex; flex-wrap: wrap; gap: 8px; }
+  .check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--muted); }
+  .check input { margin-top: 3px; accent-color: var(--accent); }
+  .overlay { width: 100%; height: auto; display: block; border: 1px solid var(--faint); background: var(--bg); }
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; font-family: var(--font-mono); font-size: 11px; color: var(--muted); text-transform: uppercase; }
+  .legend i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px; }
+
+  footer { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 32px; padding: 48px var(--gutter) calc(48px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--faint); font-family: var(--font-head); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+  footer a { color: var(--muted); } footer a:hover { color: var(--fg); }
+  footer .copy { width: 100%; text-align: center; color: var(--muted); font-weight: 600; text-transform: none; letter-spacing: .02em; font-family: var(--font-body); font-size: 13px; }
+
+  @keyframes rise { from { transform: translateY(24px); } to { transform: none; } }
+  .rise { animation: rise .9s ease both; }
+
+  @media (max-width: 900px) {
+    .nav-desktop { display: none; }
+    .section.hero { flex-direction: column; align-items: flex-start; justify-content: flex-end; }
+    .card { position: static; width: 100%; margin-top: 32px; }
+    .lab { grid-template-columns: minmax(0, 1fr); }
+    .controls { border-right: 0; border-bottom: 1px solid var(--faint); }
+    .head-row, .two { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+    .steps { grid-template-columns: minmax(0, 1fr); }
+    .bar { grid-template-columns: minmax(0, 120px) minmax(0, 1fr) 56px; }
+  }
+</style>
+
+<header class="header">
+  <a class="logo" href="#top">DROPLET</a>
+  <nav class="nav-desktop" aria-label="Sections">
+    <a href="#lab">Predict</a><a href="#upload">Your image</a><a href="#video">Video</a><a href="#evaluate">Evaluate</a><a href="#data">Data</a><a href="#sem">SEM</a><a href="#method">Method</a>
+  </nav>
+  <button class="burger" id="burger" aria-label="Open menu"><span></span><span></span><span></span></button>
+</header>
+
+<aside class="drawer" id="drawer" aria-label="Menu">
+  <button class="close" id="close" aria-label="Close menu">&times;</button>
+  <a href="#lab">Predict and compare</a><a href="#upload">Evaluate your own SEM image</a><a href="#video">Measure an impact video</a><a href="#results">Model ranking</a><a href="#trust">Calibration</a><a href="#evaluate">Model evaluation</a><a href="#data">Experimental data</a><a href="#surfaces">Surfaces</a><a href="#sem">SEM image model</a><a href="#method">Architecture and limits</a>
+</aside>
+
+<section class="section hero tall" id="top">
+  <div class="media" style="background-image:url('sem/D200_43.jpg')"></div>
+  <div class="content rise">
+    <div class="eyebrow">IISc Bengaluru · Interfacial Phenomena in Droplets · 5 to 7 Oct 2026</div>
+    <h1>How far will a drop spread on a surface nobody has tested?</h1>
+    <p>A physics informed Gaussian process predicts the maximum spreading ratio β<sub>max</sub> on laser textured aluminium it has never seen, and says how far to trust each number.</p>
+    <div class="btns"><a class="btn" href="#lab">Run the model</a><a class="btn" href="#results">See results</a></div>
+  </div>
+  <div class="card rise" aria-label="Headline results">
+    <h3>HELD OUT RESULTS</h3>
+    <div class="item"><div class="val" id="h-loso">0.040</div><div><strong>RMSE on unseen surfaces</strong><small id="h-loso-s">leave one surface out, 12 folds</small></div></div>
+    <div class="item"><div class="val" id="h-refh">1.9%</div><div><strong>Mean error, smooth plate</strong><small>REF-H, never used for training</small></div></div>
+    <div class="item"><div class="val" id="h-cov">90.1%</div><div><strong>Inside the 90% interval</strong><small>unseen textured surfaces</small></div></div>
+    <a class="all" href="#trust">WHERE IT STOPS WORKING &rsaquo;</a>
+  </div>
+</section>
+
+<section class="plain" id="lab">
+  <div class="inner">
+    <div class="head-row">
+      <div><div class="eyebrow">Live prediction</div><h2>Drop it on any surface</h2></div>
+      <p class="lede">Pick a fluid, a surface and an impact. The trained GP runs here in your browser on 1,498 measured impacts. Move the velocity slider to watch the curve.</p>
+    </div>
+    <form class="lab" id="form" novalidate>
+      <div class="controls">
+        <div class="field"><label for="fluid">Fluid</label>
+          <select id="fluid"><option value="0">Water</option><option value="20">20 wt% glycerol</option><option value="60">60 wt% glycerol</option><option value="78">78 wt% glycerol</option><option value="91">91 wt% glycerol</option></select></div>
+        <div class="field"><label for="surface">Surface</label><select id="surface"></select></div>
+        <div class="field"><label for="model">Model</label><select id="model"></select></div>
+        <div class="field"><label for="v">Impact velocity, m/s</label>
+          <div class="vrow"><input type="range" id="vslide" min="0.48" max="1.71" step="0.01" value="1.5" aria-label="Impact velocity slider"><input type="number" id="v" min="0.1" max="5" step="0.01" value="1.5"></div></div>
+        <div class="field"><label for="d">Drop diameter D<sub>0</sub>, mm</label><input type="number" id="d" min="0.5" max="6" step="0.01" value="2.5"></div>
+        <p class="note" id="fluidnote">ρ 997 kg/m³ · μ 0.94 mPa·s · σ 72.5 mN/m</p>
+        <p class="note">Measured range: V 0.48 to 1.71 m/s, D<sub>0</sub> 2.15 to 2.61 mm. Outside it the model warns you.</p>
+      </div>
+      <div class="readout" aria-live="polite">
+        <div class="big">
+          <div class="beta"><small>PREDICTED β<sub>max</sub> = D<sub>max</sub>/D<sub>0</sub></small><span id="beta">…</span></div>
+          <div style="display:grid;gap:10px"><div class="lbl">90% interval</div><div style="font-family:var(--font-head);font-weight:700;font-size:28px;font-variant-numeric:tabular-nums" id="interval">loading model</div><span class="chip ok" id="status">loading</span></div>
+        </div>
+        <ul class="reasons" id="reasons" hidden></ul>
+        <p class="err" id="err" hidden></p>
+        <div class="stats" id="phys"></div>
+        <div class="chart" id="chart" role="img" aria-label="Predicted spreading versus impact velocity"></div>
+        <div style="display:grid;gap:12px"><div><button type="button" class="btn sm" id="compare-btn">Compare all five models</button></div><div id="compare-out" class="note">Same impact through every trained candidate. The other four models load on first use.</div></div>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="plain" id="upload">
+  <div class="inner">
+    <div class="head-row">
+      <div><div class="eyebrow">Evaluate your own surface</div><h2>Drop in an SEM image</h2></div>
+      <p class="lede">Upload a top view SEM image taken near 43× (about 1.16 µm per pixel, a field of view of about 3 mm). The page measures the flat area fraction φ from the image, then predicts β<sub>max</sub> for the fluid and impact set in the predictor above. No spacing or depth needed. Nothing is uploaded anywhere: the image is read in your browser.</p>
+    </div>
+    <div class="lab">
+      <div class="controls">
+        <label class="drop" id="drop" for="file"><strong>Choose or drop an image</strong><span>TIFF (uncompressed), PNG or JPEG · JEOL TIFFs set the scale automatically</span><input type="file" id="file" accept=".tif,.tiff,.png,.jpg,.jpeg,image/*"></label>
+        <div class="field"><span class="lbl">Or try a sample from the dataset</span>
+          <div class="samples"><button type="button" class="btn sm" data-sample="D200_43">D200 textured</button><button type="button" class="btn sm" data-sample="S800_43">S800 textured</button><button type="button" class="btn sm" data-sample="REF-H_43">Smooth plate</button></div></div>
+        <div class="pair">
+          <div class="field"><label for="umpx">Pixel size, µm/px</label><input type="number" id="umpx" step="0.001" min="0.05" value="1.157"></div>
+          <div class="field"><label for="footer">Crop below row</label><input type="number" id="footer" step="1" min="0" value="0"></div>
+        </div>
+        <label class="check" for="force"><input type="checkbox" id="force"><span>Read anyway if the pixel size is not near 43× (φ will be biased low)</span></label>
+        <p class="note">Crop below row removes the microscope's info bar (1880 for the JEOL images here, 0 for none). The impact comes from the predictor: <span id="up-impact"></span>.</p>
+      </div>
+      <div class="readout" aria-live="polite">
+        <div class="big">
+          <div class="beta"><small>PREDICTED β<sub>max</sub> FROM YOUR IMAGE</small><span id="up-beta">—</span></div>
+          <div style="display:grid;gap:10px"><div class="lbl">90% interval</div><div style="font-family:var(--font-head);font-weight:700;font-size:28px;font-variant-numeric:tabular-nums" id="up-int">waiting for an image</div><span class="chip ok" id="up-status" hidden></span></div>
+        </div>
+        <ul class="reasons" id="up-reasons" hidden></ul>
+        <p class="err" id="up-err" hidden></p>
+        <div class="stats" id="up-stats"></div>
+        <canvas class="overlay" id="up-canvas" width="800" height="588" hidden></canvas>
+        <div class="legend" id="up-legend" hidden><span><i style="background:var(--accent)"></i>Rough laser track</span><span><i style="background:#777"></i>Flat plateau</span></div>
+        <p class="note">Model: GP on ln Re, ln We, ln D₀ and image φ, trained on the 12 textured surfaces. On surfaces it never saw: RMSE <span id="up-loso"></span>, interval coverage <span id="up-cov"></span>. The dataset samples above are training surfaces, except the smooth plate, which was never trained on.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="plain" id="video">
+  <div class="inner">
+    <div class="head-row">
+      <div><div class="eyebrow">Automatic measurement</div><h2>Drop in an impact video</h2></div>
+      <p class="lede">A backlit side view high speed video: dark drop and substrate on a bright background. The page finds the drop and the surface by itself, measures D<sub>0</sub> and V before contact and the spreading diameter after, predicts β<sub>max</sub> from D<sub>0</sub> and V for the fluid and surface set in the predictor, and checks the measurement against the 90% interval. No clicks on the video are needed.</p>
+    </div>
+    <div class="lab">
+      <div class="controls">
+        <label class="drop" id="vdrop" for="vfile"><strong>Choose or drop a video</strong><span>MP4 (H.264) or WebM · backlit side view</span><input type="file" id="vfile" accept="video/*,.mp4,.webm,.mov"></label>
+        <div class="field"><span class="lbl">Or try a test video</span><div class="samples"><button type="button" class="btn sm" id="vsample">Synthetic impact (known answer)</button></div></div>
+        <div class="pair">
+          <div class="field"><label for="vfps">Camera frame rate, fps</label><input type="number" id="vfps" value="5000" min="1" step="1"></div>
+          <div class="field"><label for="vscale">Scale, mm per pixel</label><input type="number" id="vscale" value="0.03" min="0.0001" step="0.0001"></div>
+        </div>
+        <div class="field"><label for="vbase">Substrate row, px (blank = automatic)</label><input type="number" id="vbase" min="1" step="1" placeholder="automatic"></div>
+        <p class="note">Frame rate is the camera's capture rate, not the playback rate of the file. Scale comes from a calibration image of a known object. Uses the fluid and surface from the predictor: <span id="v-ctx"></span>.</p>
+      </div>
+      <div class="readout" aria-live="polite">
+        <div class="big">
+          <div class="beta"><small>MEASURED β<sub>max</sub> · PREDICTED</small><span id="v-meas">—</span></div>
+          <div style="display:grid;gap:10px"><div class="lbl">Model prediction, 90% interval</div><div style="font-family:var(--font-head);font-weight:700;font-size:28px;font-variant-numeric:tabular-nums" id="v-pred">waiting for a video</div><span class="chip ok" id="v-status" hidden></span></div>
+        </div>
+        <p class="err" id="v-err" hidden></p>
+        <div class="stats" id="v-stats"></div>
+        <div class="chart" id="v-chart"></div>
+        <canvas class="overlay" id="v-canvas" hidden></canvas>
+        <p class="note" id="v-truth"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="results" style="min-height:auto">
+  <div class="media" style="background-image:url('sem/D200_350.jpg')"></div>
+  <div class="content" style="max-width:1180px;width:100%;margin:0 auto">
+    <div class="two">
+      <div><div class="eyebrow">13 learners · same five inputs</div><h2>The simplest model won</h2>
+        <p class="tight">Every learner was scored on surfaces it never saw. The Gaussian process has the lowest error. XGBoost on the same inputs is clearly worse, and nothing added on top of the GP gave a significant gain, so the plain GP stays.</p></div>
+      <div><div class="panel-title">RMSE on held out surfaces (β units)</div><div class="bars" id="zoo"></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="plain" id="trust">
+  <div class="inner">
+    <div class="head-row">
+      <div><div class="eyebrow">Calibration</div><h2>Where it stops working</h2></div>
+      <p class="lede">The 90% interval holds overall on unseen textured surfaces, but not for every fluid. Thin fluids miss more often. On the smooth plate only 62% of impacts fall inside: it is hydrophobic, the textures are superhydrophobic, and wettability is not an input.</p>
+    </div>
+    <div class="two">
+      <div><div class="panel-title">Unseen textured surfaces</div><div class="bars" id="cov-loso"></div></div>
+      <div><div class="panel-title">Smooth plate REF-H</div><div class="bars" id="cov-refh"></div></div>
+    </div>
+    <p class="note">Share of impacts inside the 90% interval, by glycerol content. White tick marks the 90% target.</p>
+  </div>
+</section>
+
+<section class="section" id="evaluate-hero" style="min-height:auto;padding-bottom:70px">
+  <div class="media" style="background-image:url('sem/D50_350.jpg')"></div>
+  <div class="content"><div class="eyebrow">Model evaluation</div><h2>Evidence before claims</h2><p class="tight">Every outer test surface stays outside fitting, selection and calibration. The ranking below is development evidence; the nested result scores the selection procedure itself.</p></div>
+</section>
+<section class="plain" id="evaluate" style="border-top:0;padding-top:50px">
+  <div class="inner">
+    <div class="tiles" id="eval-tiles"></div>
+    <div class="two">
+      <div><div class="panel-title">Fixed candidates · 12 held out surfaces</div><div class="bars" id="eval-bars"></div></div>
+      <div><div class="panel-title">Interval coverage by outer surface</div><div class="bars" id="eval-cov"></div><p class="note" style="margin-top:12px">Nested selection with calibration isolated from the outer surface. White tick: 90% target.</p></div>
+    </div>
+    <div class="tbl" id="eval-table"></div>
+    <div class="tbl" id="eval-folds"></div>
+  </div>
+</section>
+
+<section class="plain" id="data">
+  <div class="inner">
+    <div class="head-row">
+      <div><div class="eyebrow">Experimental data</div><h2>The impacts underneath</h2></div>
+      <p class="lede">1,498 impacts on 12 textured surfaces and 125 on the smooth plate, across five fluids. Filter by surface and composition. Measurements: Može et al. (2025), University of Ljubljana.</p>
+    </div>
+    <div class="filters">
+      <div class="field"><label for="data-surface">Surface</label><select id="data-surface"></select></div>
+      <div class="field"><label for="data-fluid">Glycerol</label><select id="data-fluid"><option value="all">All compositions</option><option value="0">Water</option><option value="20">20 wt%</option><option value="60">60 wt%</option><option value="78">78 wt%</option><option value="91">91 wt%</option></select></div>
+      <div class="pager"><span id="data-count"></span></div>
+    </div>
+    <div class="tbl" id="data-table"></div>
+    <div class="pager"><button type="button" class="btn sm" id="prev">Previous</button><span id="page-no"></span><button type="button" class="btn sm" id="next">Next</button></div>
+  </div>
+</section>
+
+<section class="plain" id="surfaces">
+  <div class="inner">
+    <div class="head-row">
+      <div><div class="eyebrow">SEM at 43× · 12 textures + 1 smooth plate</div><h2>Surfaces as numbers</h2></div>
+      <p class="lede">Each texture is a grid of laser tracks 50 to 800 µm apart, 6 or 25 µm deep. From SEM, the tracks are about 45 µm wide (deep) and 30 µm (shallow). That gives the flat area fraction φ, and the smooth plate is simply φ = 1. Tap a surface to send it to the model.</p>
+    </div>
+    <div class="gallery" id="gallery"></div>
+  </div>
+</section>
+
+<section class="plain" id="sem">
+  <div class="inner">
+    <div class="head-row">
+      <div><div class="eyebrow">SEM image model · 39 real images</div><h2>From microstructure to spreading</h2></div>
+      <p class="lede">43×, 100× and 350× views pass through a shared convolutional encoder that estimates φ and texture volume. The GP then combines these image derived values with Re, We and D<sub>0</sub>. All three views stay together when a surface is held out, and REF-H images never enter training.</p>
+    </div>
+    <div class="tiles" id="sem-tiles"></div>
+    <div class="filters">
+      <div class="field"><label for="sem-surface">Surface</label><select id="sem-surface"></select></div>
+      <button type="button" class="btn sm" id="use-sem">Predict with this image set</button>
+    </div>
+    <div class="semviews" id="sem-views"></div>
+    <div class="stats" id="sem-desc"></div>
+    <div class="two">
+      <div class="tbl" id="sem-table"></div>
+      <div><div class="panel-title">What this experiment establishes</div><ul class="list"><li>The network is trained on real pixels. Its targets are the geometry based descriptors, not new independent measurements.</li><li>Only 12 textured surfaces exist, so the image branch stays experimental.</li><li>Nominal GP intervals here do not include CNN uncertainty.</li></ul><p class="note" style="margin-top:14px" id="sem-decision"></p></div>
+    </div>
+  </div>
+</section>
+
+<section class="plain" id="method">
+  <div class="inner">
+    <div><div class="eyebrow">How it was built</div><h2>Three steps</h2></div>
+    <div class="steps">
+      <div class="step"><div class="k">01 · DESCRIBE</div><h3>Surface descriptors</h3><p>Track width from SEM sets the flat area fraction and the texture volume for every surface, including the smooth plate.</p><div class="formula">φ = (max(s − w, 0)/s)²<br>V<sub>tex</sub> = (1 − φ)·h</div></div>
+      <div class="step"><div class="k">02 · MODEL</div><h3>Gaussian process</h3><p>Matérn 3/2 kernel, one length scale per input, plus white noise, fitted on ln β<sub>max</sub>.</p><div class="formula">inputs: ln Re, ln We, ln D₀, φ, V<sub>tex</sub></div></div>
+      <div class="step"><div class="k">03 · TEST</div><h3>Hold out whole surfaces</h3><p>Leave one surface out picks the model. A change counts only if its 95% bootstrap interval over surfaces excludes zero. The smooth plate is never used for training.</p>
+          <div class="formula">12 folds · 4,000 bootstrap draws</div></div>
+    </div>
+    <div class="panel-title" style="margin-top:20px">Prediction pipeline</div>
+    <div class="flow">
+      <div><b>Input</b><span>Drop, fluid, surface</span><small>D₀, V, ρ, μ, σ and the surface name or descriptors</small></div>
+      <div><b>Features</b><span>Re · We · ln D₀ · φ · V<sub>tex</sub></span><small>Dimensionless groups plus SEM based surface encoding</small></div>
+      <div><b>Posterior</b><span>Gaussian process</span><small>Mean and uncertainty, evaluated in float64</small></div>
+      <div><b>Checks</b><span>Range + anomaly</span><small>Measured support, Mahalanobis percentile, smooth surface warning</small></div>
+    </div>
+    <div class="two" style="margin-top:20px">
+      <div><div class="panel-title">What the data cannot establish</div><ul class="list"><li>Only 12 independent textured surfaces are available.</li><li>Wettability is not an input; contact angle coverage is incomplete.</li><li>Cross validation does not guarantee coverage for every surface under shift.</li><li>New surfaces, with a test set fixed before tuning, are needed to confirm the error.</li></ul></div>
+      <div><div class="panel-title">Reproduce locally</div><pre class="code">cd Droplet_Intelligence_v2
+python -m pip install -r requirements.txt
+python -m unittest discover -s tests
+python -m droplet.serve --port 8000</pre></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <a href="#lab">Predict</a><a href="#evaluate">Evaluate</a><a href="#data">Data</a><a href="#sem">SEM</a><a href="#method">Method</a>
+  <div class="copy">Parth Sharma · Thapar Institute of Engineering and Technology, Patiala · Experimental data: Može et al., Data in Brief 61 (2025) 111697, University of Ljubljana</div>
+</footer>
+
+<script type="module">
+import { GP } from './engine.mjs';
+import { decodeFile, roughness, phiFrom, loadImageGP } from './imagereader.mjs';
+import { grabFrames, analyse as analyseVideo } from './video.mjs';
+const $ = id => document.getElementById(id);
+const drawer = $('drawer');
+$('burger').onclick = () => drawer.classList.add('open');
+$('close').onclick = () => drawer.classList.remove('open');
+drawer.querySelectorAll('a').forEach(a => a.addEventListener('click', () => drawer.classList.remove('open')));
+
+const fmt = (n, d) => Number(n).toFixed(d);
+const NAMES = { D50:'D50', D100:'D100', D200:'D200', D400:'D400', D600:'D600', D800:'D800', S50:'S50', S100:'S100', S200:'S200', S400:'S400', S600:'S600', S800:'S800', 'REF-H':'REF-H' };
+const ORDER = ['D50','D100','D200','D400','D600','D800','S50','S100','S200','S400','S600','S800','REF-H'];
+let release, stats, gp, bench, nested, exps = [], semSum, encoder, dataPage = 0;
+// Trained covariance factor: binary file where the host serves it (website), base64 text otherwise (artifact).
+async function fetchL(kind) {
+  try { const r = await fetch(`./models/${kind}.L.bin`); const ct = r.headers.get('content-type') || ''; if (r.ok && !ct.includes('text/html')) { const b = await r.arrayBuffer(); if (b.byteLength % 8 === 0 && b.byteLength > 1e5) return b; } } catch (e) {}
+  const t = await fetch(`./models/${kind}.L.txt`).then(r => r.text()), s = atob(t.trim()), u = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+  return u.buffer;
+}
+const models = new Map();
+const SHORT = { baseline: 'Baseline GP', matern52: 'Matérn 5/2 GP', structured: 'Interaction GP', physics_residual: 'Laan + GP', sem_gp: 'SEM CNN + GP' };
+async function loadModel(kind) {
+  if (models.has(kind)) return models.get(kind);
+  const [meta, L] = await Promise.all([fetch(`./models/${kind}.json`).then(r => r.json()), fetchL(kind)]);
+  if (L.byteLength !== meta.n * (meta.n + 1) / 2 * 8) throw Error('Model download incomplete');
+  const m = new GP(meta, new Float64Array(L)); models.set(kind, m); return m;
+}
+const table = (h, rows) => '<table><thead><tr>' + h.map(x => `<th>${x}</th>`).join('') + '</tr></thead><tbody>' + rows.map(r => '<tr>' + r.map(c => typeof c === 'object' ? `<td class="${c.cls}">${c.v}</td>` : `<td>${c}</td>`).join('') + '</tr>').join('') + '</tbody></table>';
+
+function bars(el, rows, max, opts = {}) {
+  el.innerHTML = rows.map(r => `<div class="bar${r.hi ? ' hi' : ''}"><span>${r.label}</span><div class="track"><div class="fill" style="width:${Math.min(r.value / max, 1) * 100}%"></div>${opts.mark != null ? `<div class="mark" style="left:${opts.mark / max * 100}%"></div>` : ''}</div><span class="num">${r.text}</span></div>`).join('');
+}
+
+function fluidNote() {
+  const f = release.fluids[$('fluid').value];
+  $('fluidnote').textContent = `ρ ${fmt(f.rho, 0)} kg/m³ · μ ${fmt(f.mu * 1000, 2)} mPa·s · σ ${fmt(f.sigma * 1000, 1)} mN/m`;
+}
+
+function payload(V) {
+  const f = release.fluids[$('fluid').value];
+  return { D_mm: Number($('d').value), V: V ?? Number($('v').value), rho: f.rho, mu: f.mu, sigma: f.sigma, surface: $('surface').value };
+}
+
+function chart(p, pred) {
+  const rows = [];
+  for (let i = 0; i <= 44; i++) { const V = .48 + 1.23 * i / 44; const q = gp.predict(payload(V), release); rows.push({ V, b: q.beta_max, lo: q.interval.lower, hi: q.interval.upper }); }
+  const W = 760, H = 300, l = 52, r = 18, t = 16, b = 46, x0 = .48, x1 = 1.71;
+  const y0 = Math.floor(Math.min(...rows.map(q => q.lo), pred.interval.lower) * 4) / 4, y1 = Math.ceil(Math.max(...rows.map(q => q.hi), pred.interval.upper) * 4) / 4;
+  const X = v => l + (v - x0) / (x1 - x0) * (W - l - r), Y = v => H - b - (v - y0) / Math.max(y1 - y0, .25) * (H - t - b);
+  let s = '';
+  for (let i = 0; i <= 4; i++) { const y = y0 + (y1 - y0) * i / 4; s += `<line x1="${l}" x2="${W - r}" y1="${Y(y)}" y2="${Y(y)}" stroke="var(--faint)"/><text x="${l - 8}" y="${Y(y) + 4}" text-anchor="end" fill="var(--muted)" font-size="12" font-family="IBM Plex Mono, monospace">${fmt(y, 2)}</text>`; }
+  for (const x of [.5, .75, 1, 1.25, 1.5]) s += `<text x="${X(x)}" y="${H - b + 20}" text-anchor="middle" fill="var(--muted)" font-size="12" font-family="IBM Plex Mono, monospace">${fmt(x, 2)}</text>`;
+  const line = k => rows.map((q, i) => `${i ? 'L' : 'M'}${X(q.V).toFixed(1)},${Y(q[k]).toFixed(1)}`).join(' ');
+  const area = line('hi') + ' ' + rows.slice().reverse().map(q => `L${X(q.V).toFixed(1)},${Y(q.lo).toFixed(1)}`).join(' ') + ' Z';
+  s += `<path d="${area}" fill="var(--band)"/><path d="${line('b')}" fill="none" stroke="var(--accent)" stroke-width="2.5"/>`;
+  if (p.V >= x0 && p.V <= x1) s += `<line x1="${X(p.V)}" x2="${X(p.V)}" y1="${t}" y2="${H - b}" stroke="var(--line)" stroke-dasharray="3 5"/><circle cx="${X(p.V)}" cy="${Y(pred.beta_max)}" r="6" fill="var(--fg)" stroke="var(--bg)" stroke-width="2"/>`;
+  s += `<text x="${(W + l) / 2}" y="${H - 6}" text-anchor="middle" fill="var(--muted)" font-size="12" font-family="IBM Plex Mono, monospace">IMPACT VELOCITY, m/s</text>`;
+  $('chart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" aria-hidden="true">${s}</svg>`;
+}
+
+async function run() {
+  if (!gp) return;
+  const kind = $('model').value || 'baseline';
+  try { gp = await loadModel(kind); } catch (e) { $('err').hidden = false; $('err').textContent = e.message; return; }
+  $('err').hidden = true;
+  try {
+    const p = payload(), pred = gp.predict(p, release);
+    $('beta').textContent = fmt(pred.beta_max, 3);
+    $('interval').textContent = `${fmt(pred.interval.lower, 2)} to ${fmt(pred.interval.upper, 2)}`;
+    const inside = pred.reliability.status === 'within_measured_support';
+    $('status').className = 'chip ' + (inside ? 'ok' : 'warn');
+    $('status').textContent = inside ? 'Within measured range' : pred.reliability.status === 'experimental' ? 'Experimental model' : 'Extrapolation';
+    const rs = pred.reliability.reasons; $('reasons').hidden = !rs.length; $('reasons').innerHTML = rs.map(x => `<li>${x}</li>`).join('');
+    const q = pred.physics;
+    $('phys').innerHTML = `<div><b>Re</b><span>${fmt(q.Re, 0)}</span></div><div><b>We</b><span>${fmt(q.We, 1)}</span></div><div><b>Oh</b><span>${fmt(q.Oh, 4)}</span></div><div><b>φ</b><span>${fmt(q.phi, 3)}</span></div><div><b>V<sub>tex</sub>, µm</b><span>${fmt(q.texvol, 1)}</span></div>`;
+    chart(p, pred);
+    upPredict();
+    vPredict();
+  } catch (e) {
+    $('err').hidden = false; $('err').textContent = e.message + '. Check the inputs.';
+    $('beta').textContent = '—'; $('interval').textContent = '—';
+  }
+}
+
+function gallery() {
+  $('gallery').innerHTML = ORDER.map(k => { const g = stats.surfaces[k]; return `<button type="button" class="tile" data-s="${k}" style="background-image:url('sem/${k}_43.jpg')"><span>${NAMES[k]}<small>φ ${fmt(g.phi, 2)}${g.spacing ? ` · ${g.spacing} µm` : ' · smooth'}</small></span></button>`; }).join('');
+  $('gallery').querySelectorAll('.tile').forEach(b => b.onclick = () => { $('surface').value = b.dataset.s; mark(); run(); $('lab').scrollIntoView({ behavior: 'smooth' }); });
+}
+const mark = () => document.querySelectorAll('.tile').forEach(t => t.classList.toggle('on', t.dataset.s === $('surface').value));
+
+async function init() {
+  try {
+    [release, stats] = await Promise.all([fetch('./models/release.json').then(r => r.json()), fetch('./stats.json').then(r => r.json())]);
+    const b = stats.baseline;
+    $('h-loso').textContent = fmt(b.loso, 3); $('h-refh').textContent = fmt(stats.refh_mape, 1) + '%';
+    $('h-cov').textContent = fmt(b.loso_cov * 100, 1) + '%';
+    $('surface').innerHTML = ORDER.map(k => `<option value="${k}"${k === 'D200' ? ' selected' : ''}>${k}${k === 'REF-H' ? ' (smooth plate)' : ` (${stats.surfaces[k].spacing} µm, ${stats.surfaces[k].depth > 15 ? 'deep' : 'shallow'})`}</option>`).join('');
+    gallery(); mark(); fluidNote();
+    const zoo = stats.zoo.filter(z => z.loso < .12);
+    bars($('zoo'), zoo.map((z, i) => ({ label: z.name, value: z.loso, text: fmt(z.loso, 3), hi: i === 0 })), Math.max(...zoo.map(z => z.loso)) * 1.05);
+    const lab = g => g === 0 ? 'Water' : `${g} wt% glycerol`;
+    bars($('cov-loso'), stats.by_fluid.map(f => ({ label: lab(f.gly), value: f.loso_cov, text: fmt(f.loso_cov * 100, 0) + '%', hi: f.loso_cov >= .9 })), 1, { mark: .9 });
+    bars($('cov-refh'), stats.by_fluid.map(f => ({ label: lab(f.gly), value: f.refh_cov, text: fmt(f.refh_cov * 100, 0) + '%', hi: f.refh_cov >= .9 })), 1, { mark: .9 });
+    const [meta, L] = await Promise.all([fetch('./models/baseline.json').then(r => r.json()), fetchL('baseline')]);
+    if (L.byteLength !== meta.n * (meta.n + 1) / 2 * 8) throw Error('Model download incomplete');
+    gp = new GP(meta, new Float64Array(L)); models.set('baseline', gp);
+    $('model').innerHTML = Object.keys(release.candidates).map(k => `<option value="${k}">${SHORT[k]}${k === release.selected ? ' (selected)' : ''}</option>`).join('');
+    run();
+    workspace();
+  } catch (e) {
+    $('err').hidden = false; $('err').textContent = 'The model could not load: ' + e.message + '. Reload the page.';
+    $('interval').textContent = '—'; $('status').textContent = 'Not loaded'; $('status').className = 'chip warn';
+  }
+}
+
+async function workspace() {
+  try {
+    [bench, nested, exps, semSum, encoder] = await Promise.all(['results/benchmark.json', 'results/nested.json', 'results/experiments.json', 'results/sem/summary.json', 'models/sem/encoder.json'].map(u => fetch('./' + u).then(r => r.json())));
+  } catch (e) { $('eval-tiles').innerHTML = `<p class="err">Evaluation files could not load: ${e.message}</p>`; return; }
+  const sel = release.selected, bm = bench.metrics.find(m => m.model === sel);
+  $('eval-tiles').innerHTML = `<div class="tile-m lead"><b>Deployed model, LOSO RMSE</b><span>${fmt(bm.loso_rmse, 4)}</span><small>${SHORT[sel]}, fixed candidate</small></div><div class="tile-m"><b>Nested selection RMSE</b><span>${fmt(nested.nested_rmse, 4)}</span><small>Selection scored on outer surfaces</small></div><div class="tile-m"><b>Nested interval coverage</b><span>${fmt(nested.coverage * 100, 1)}%</span><small>Target 90%</small></div>`;
+  const mx = Math.max(...bench.metrics.map(m => m.loso_rmse)) * 1.1;
+  bars($('eval-bars'), bench.metrics.map(m => ({ label: SHORT[m.model], value: m.loso_rmse, text: fmt(m.loso_rmse, 4), hi: m.model === sel })), mx);
+  bars($('eval-cov'), nested.folds.map(f => ({ label: f.outer, value: f.coverage, text: fmt(f.coverage * 100, 0) + '%', hi: f.coverage >= .9 })), 1, { mark: .9 });
+  $('eval-table').innerHTML = table(['Model', 'LOSO RMSE', 'Worst surface', 'MAE', 'REF-H RMSE', 'REF-H coverage'], bench.metrics.map(m => [m.model === sel ? { v: SHORT[m.model] + ' · deployed', cls: 'sel' } : SHORT[m.model], fmt(m.loso_rmse, 4), fmt(m.worst_rmse, 4), fmt(m.mae, 4), fmt(release.candidates[m.model].refh.rmse, 4), fmt(release.candidates[m.model].refh.coverage * 100, 1) + '%']));
+  $('eval-folds').innerHTML = table(['Outer surface', 'Model chosen in inner folds', 'RMSE', 'Coverage', 'Interval width'], nested.folds.map(f => [f.outer, SHORT[f.selected], fmt(f.rmse, 4), fmt(f.coverage * 100, 1) + '%', fmt(f.interval_width, 3)]));
+  $('data-surface').innerHTML = '<option value="all">All surfaces</option>' + ORDER.map(k => `<option>${k}</option>`).join('');
+  renderData();
+  $('sem-tiles').innerHTML = `<div class="tile-m lead"><b>SEM to GP, LOSO RMSE</b><span>${fmt(semSum.loso_rmse, 4)}</span><small>Whole surfaces held out</small></div><div class="tile-m"><b>Geometry GP baseline</b><span>${fmt(semSum.baseline_rmse, 4)}</span><small>Same impacts and test surfaces</small></div><div class="tile-m"><b>Real SEM images</b><span>36 + 3</span><small>Textured + REF-H stress test</small></div>`;
+  $('sem-surface').innerHTML = Object.keys(encoder.surface_descriptors).map(k => `<option${k === 'D200' ? ' selected' : ''}>${k}</option>`).join('');
+  renderSEM();
+  const base = bench.metrics.find(m => m.model === 'baseline');
+  $('sem-table').innerHTML = table(['Surface', 'SEM GP RMSE', 'Baseline GP RMSE'], Object.keys(semSum.per_surface).map(k => [k, fmt(semSum.per_surface[k], 4), fmt(base.per_surface[k], 4)]));
+  const ci = semSum.delta_vs_baseline_ci95;
+  $('sem-decision').textContent = `Difference from the baseline: 95% paired surface bootstrap interval [${fmt(ci[0], 4)}, ${fmt(ci[1], 4)}]. It includes zero, so the default predictor stays the baseline GP.`;
+}
+function renderData() {
+  const s = $('data-surface').value, f = $('data-fluid').value;
+  const rows = exps.filter(x => (s === 'all' || x.surface === s) && (f === 'all' || x.glycerol === Number(f)));
+  const pages = Math.max(1, Math.ceil(rows.length / 15)); dataPage = Math.min(Math.max(dataPage, 0), pages - 1);
+  $('data-count').textContent = rows.length.toLocaleString() + ' impacts';
+  $('data-table').innerHTML = table(['Surface', 'Glycerol wt%', 'D₀ mm', 'V m/s', 'Re', 'We', 'Measured β'], rows.slice(dataPage * 15, dataPage * 15 + 15).map(x => [x.surface, x.glycerol, fmt(x.D * 1000, 3), fmt(x.V, 3), fmt(x.Re, 1), fmt(x.We, 2), fmt(x.beta, 4)]));
+  $('page-no').textContent = `${dataPage + 1} / ${pages}`; $('prev').disabled = dataPage === 0; $('next').disabled = dataPage >= pages - 1;
+}
+function renderSEM() {
+  const k = $('sem-surface').value, d = encoder.surface_descriptors[k];
+  $('sem-views').innerHTML = [43, 100, 350].map(m => `<figure><img src="sem/${k}_${m}.jpg" alt="${k} SEM at ${m}× magnification" loading="lazy"><figcaption>${k} · ${m}×</figcaption></figure>`).join('');
+  $('sem-desc').innerHTML = `<div><b>CNN φ</b><span>${fmt(d.phi, 3)}</span></div><div><b>CNN V<sub>tex</sub>, µm</b><span>${fmt(d.texvol, 2)}</span></div><div><b>Geometry φ</b><span>${fmt(stats.surfaces[k].phi, 3)}</span></div><div><b>Geometry V<sub>tex</sub>, µm</b><span>${fmt(stats.surfaces[k].texvol, 2)}</span></div>`;
+}
+$('data-surface').onchange = $('data-fluid').onchange = () => { dataPage = 0; renderData(); };
+$('prev').onclick = () => { dataPage--; renderData(); };
+$('next').onclick = () => { dataPage++; renderData(); };
+$('sem-surface').onchange = renderSEM;
+$('use-sem').onclick = () => { $('surface').value = $('sem-surface').value; $('model').value = 'sem_gp'; mark(); run(); $('lab').scrollIntoView({ behavior: 'smooth' }); };
+$('model').onchange = run;
+$('compare-btn').onclick = async () => {
+  const out = $('compare-out'), btn = $('compare-btn'); btn.disabled = true; out.className = 'note'; out.textContent = 'Loading the candidate models…';
+  try {
+    const rows = [];
+    for (const k of Object.keys(release.candidates)) { const m = await loadModel(k); const q = m.predict(payload(), release); rows.push(`<div><b>${SHORT[k]}</b><span>${fmt(q.beta_max, 3)}</span><small>${fmt(q.interval.lower, 2)} to ${fmt(q.interval.upper, 2)}</small></div>`); }
+    out.className = 'compare'; out.innerHTML = rows.join('');
+  } catch (e) { out.className = 'note'; out.textContent = 'Could not load a model: ' + e.message; }
+  btn.disabled = false;
+};
+// ---------- Your image ----------
+let imgGP = null, imgMeta = null, upImg = null, upMap = null, upPhi = null;
+async function imageModel() {
+  if (imgGP) return imgGP;
+  const [meta, L] = await Promise.all([fetch('./models/image_only.json').then(r => r.json()), fetchL('image_only')]);
+  if (L.byteLength !== meta.n * (meta.n + 1) / 2 * 8) throw Error('Image model download incomplete');
+  imgMeta = meta; imgGP = loadImageGP(meta, new Float64Array(L));
+  $('up-loso').textContent = fmt(meta.loso.rmse, 4); $('up-cov').textContent = fmt(meta.loso_coverage_with_q * 100, 1) + '%';
+  return imgGP;
+}
+function upError(msg) { $('up-err').hidden = !msg; $('up-err').textContent = msg || '';
+  if (msg) { $('up-status').hidden = true; $('up-reasons').hidden = true; $('up-stats').innerHTML = ''; $('up-canvas').hidden = true; $('up-legend').hidden = true; } }
+function drawOverlay() {
+  const c = $('up-canvas'), W = upMap.width, H = upMap.height, full = new OffscreenCanvas(W, H), fx = full.getContext('2d'), id = fx.createImageData(W, H), thr = imgMeta.reader.threshold;
+  for (let i = 0; i < W * H; i++) { const g = upImg.gray[i]; if (upMap.sd[i] > thr) { id.data[4 * i] = 60 + g * .3; id.data[4 * i + 1] = 150 + g * .3; id.data[4 * i + 2] = 205 + g * .2; } else { id.data[4 * i] = id.data[4 * i + 1] = id.data[4 * i + 2] = g * .6; } id.data[4 * i + 3] = 255; }
+  fx.putImageData(id, 0, 0); c.width = 800; c.height = Math.round(800 * H / W);
+  c.getContext('2d').drawImage(full, 0, 0, c.width, c.height); c.hidden = false; $('up-legend').hidden = false;
+}
+async function upAnalyse() {
+  if (!upImg) return;
+  upError(''); $('up-int').textContent = 'Reading image…'; $('up-beta').textContent = '…';
+  try {
+    await imageModel();
+    const um = Number($('umpx').value), footer = Number($('footer').value) || 0, cal = imgMeta.reader.um_per_px_43x;
+    if (!(um > 0)) throw Error('Enter the pixel size in µm per pixel');
+    if (!$('force').checked && Math.abs(um / cal - 1) > imgMeta.reader.tolerance)
+      throw Error(`Pixel size ${fmt(um, 3)} µm/px is far from the calibrated ${fmt(cal, 3)} µm/px (about 43×). Use an image near 43×, or tick "Read anyway".`);
+    await new Promise(r => setTimeout(r, 30));
+    upMap = roughness(upImg, um, footer, imgMeta.reader.window_um); upPhi = phiFrom(upMap, imgMeta.reader.threshold);
+    drawOverlay(); upPredict();
+  } catch (e) { upPhi = null; upError(e.message); $('up-beta').textContent = '—'; $('up-int').textContent = '—'; $('up-status').hidden = true; }
+}
+function upPredict() {
+  if (release) { const f = release.fluids[$('fluid').value]; $('up-impact').textContent = `${$('fluid').selectedOptions[0].text}, V ${$('v').value} m/s, D₀ ${$('d').value} mm`; }
+  if (upPhi == null || !imgGP) return;
+  const p = payload(), q = imgGP.predict({ phi: upPhi, D_mm: p.D_mm, V: p.V, rho: p.rho, mu: p.mu, sigma: p.sigma });
+  $('up-beta').textContent = fmt(q.beta, 3); $('up-int').textContent = `${fmt(q.lo, 2)} to ${fmt(q.hi, 2)}`;
+  const ok = !q.reasons.length; $('up-status').hidden = false; $('up-status').className = 'chip ' + (ok ? 'ok' : 'warn'); $('up-status').textContent = ok ? 'Within measured range' : 'Extrapolation';
+  $('up-reasons').hidden = ok; $('up-reasons').innerHTML = q.reasons.map(x => `<li>${x}</li>`).join('');
+  const near = ORDER.filter(k => k !== 'REF-H').map(k => [k, Math.abs((stats.image_phi?.[k] ?? stats.surfaces[k].phi) - upPhi)]).sort((a, b) => a[1] - b[1])[0][0];
+  $('up-stats').innerHTML = `<div><b>φ from image</b><span>${fmt(upPhi, 3)}</span></div><div><b>Pixel size, µm</b><span>${fmt(Number($('umpx').value), 3)}</span></div><div><b>Window, px</b><span>${upMap.win}</span></div><div><b>Re</b><span>${fmt(q.Re, 0)}</span></div><div><b>We</b><span>${fmt(q.We, 1)}</span></div><div><b>Closest training surface</b><span>${near}</span></div>`;
+}
+async function upLoad(fileOrBlob, name) {
+  upError(''); $('up-int').textContent = 'Decoding…';
+  try {
+    upImg = await decodeFile(fileOrBlob);
+    if (upImg.mag) { $('umpx').value = fmt(500 / 432 * 43 / upImg.mag, 3); $('footer').value = upImg.height === 2048 ? 1880 : 0; }
+    else if (name && /_43\.png$/.test(name)) { $('umpx').value = '1.157'; $('footer').value = 1880; }
+    await upAnalyse();
+  } catch (e) { upImg = null; upError(e.message); $('up-int').textContent = '—'; }
+}
+$('file').onchange = () => { const f = $('file').files[0]; if (f) upLoad(f, f.name); };
+const dz = $('drop');
+['dragenter', 'dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('over'); }));
+dz.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) upLoad(f, f.name); });
+document.querySelectorAll('[data-sample]').forEach(b => b.onclick = async () => { const n = b.dataset.sample; $('up-int').textContent = 'Loading sample…'; const blob = await fetch(`./samples/${n}.png`).then(r => r.blob()); upLoad(blob, n + '.png'); });
+['umpx', 'footer', 'force'].forEach(id => $(id).onchange = upAnalyse);
+
+// ---------- Impact video ----------
+let vData = null, vRes = null, vTruth = null;
+function vError(msg) { $('v-err').hidden = !msg; $('v-err').textContent = msg || ''; if (msg) { $('v-status').hidden = true; $('v-stats').innerHTML = ''; $('v-chart').innerHTML = ''; $('v-canvas').hidden = true; } }
+function vChart(series, measured, pred) {
+  const W = 760, H = 280, l = 52, r = 18, t = 16, b = 46, x1 = Math.max(...series.map(s => s.t_ms)) || 1;
+  const ys = series.map(s => s.D_mm / vRes.D0_mm), y1 = Math.max(...ys, pred.hi) * 1.08;
+  const X = v => l + v / x1 * (W - l - r), Y = v => H - b - v / y1 * (H - t - b);
+  let s = `<rect x="${l}" y="${Y(pred.hi)}" width="${W - l - r}" height="${Y(pred.lo) - Y(pred.hi)}" fill="var(--band)"/><line x1="${l}" x2="${W - r}" y1="${Y(pred.beta)}" y2="${Y(pred.beta)}" stroke="var(--accent)" stroke-dasharray="5 4"/>`;
+  for (let i = 0; i <= 4; i++) { const y = y1 * i / 4; s += `<text x="${l - 8}" y="${Y(y) + 4}" text-anchor="end" fill="var(--muted)" font-size="12" font-family="IBM Plex Mono, monospace">${fmt(y, 1)}</text>`; }
+  for (let i = 0; i <= 4; i++) { const x = x1 * i / 4; s += `<text x="${X(x)}" y="${H - b + 20}" text-anchor="middle" fill="var(--muted)" font-size="12" font-family="IBM Plex Mono, monospace">${fmt(x, 1)}</text>`; }
+  s += `<path d="${series.map((p, i) => `${i ? 'L' : 'M'}${X(p.t_ms).toFixed(1)},${Y(p.D_mm / vRes.D0_mm).toFixed(1)}`).join(' ')}" fill="none" stroke="var(--fg)" stroke-width="2"/>`;
+  s += `<text x="${(W + l) / 2}" y="${H - 6}" text-anchor="middle" fill="var(--muted)" font-size="12" font-family="IBM Plex Mono, monospace">TIME AFTER CONTACT, ms · white: measured D/D₀ · blue: predicted β_max and interval</text>`;
+  $('v-chart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" aria-hidden="true">${s}</svg>`;
+}
+function vOverlay() {
+  const { W, H, frames } = vData, i = vRes.series.length ? vRes.contact + vRes.series.reduce((b, p, k, a) => p.D_mm > a[b].D_mm ? k : b, 0) : 0;
+  const c = $('v-canvas'); c.width = W; c.height = H; const ctx = c.getContext('2d'), id = ctx.createImageData(W, H), g = frames[i];
+  for (let p = 0; p < W * H; p++) { id.data[4 * p] = id.data[4 * p + 1] = id.data[4 * p + 2] = g[p]; id.data[4 * p + 3] = 255; }
+  ctx.putImageData(id, 0, 0); const r = vRes.recs[i];
+  ctx.strokeStyle = '#8fd3ff'; ctx.lineWidth = 2; if (r) ctx.strokeRect(r.left, r.top, r.right - r.left, r.bottom - r.top);
+  ctx.strokeStyle = '#f2b45a'; ctx.beginPath(); ctx.moveTo(0, vRes.baseline); ctx.lineTo(W, vRes.baseline); ctx.stroke();
+  c.hidden = false;
+}
+function vPredict() {
+  if (release) $('v-ctx').textContent = `${$('fluid').selectedOptions[0].text}, surface ${$('surface').value}`;
+  if (!vRes || !gp) return;
+  try {
+    const f = release.fluids[$('fluid').value], p = gp.predict({ D_mm: vRes.D0_mm, V: vRes.V, rho: f.rho, mu: f.mu, sigma: f.sigma, surface: $('surface').value }, release);
+    const pred = { beta: p.beta_max, lo: p.interval.lower, hi: p.interval.upper }, inside = vRes.beta_max >= pred.lo && vRes.beta_max <= pred.hi;
+    $('v-meas').textContent = fmt(vRes.beta_max, 3);
+    $('v-pred').textContent = `${fmt(pred.beta, 3)} · ${fmt(pred.lo, 2)} to ${fmt(pred.hi, 2)}`;
+    $('v-status').hidden = false; $('v-status').className = 'chip ' + (inside ? 'ok' : 'warn');
+    $('v-status').textContent = inside ? 'Measurement inside interval' : 'Measurement outside interval';
+    $('v-stats').innerHTML = `<div><b>D₀, mm</b><span>${fmt(vRes.D0_mm, 3)}</span></div><div><b>V, m/s</b><span>${fmt(vRes.V, 3)}</span></div><div><b>Re</b><span>${fmt(p.physics.Re, 0)}</span></div><div><b>We</b><span>${fmt(p.physics.We, 1)}</span></div><div><b>t at β<sub>max</sub>, ms</b><span>${fmt(vRes.t_max_ms, 2)}</span></div><div><b>Frames</b><span>${vRes.frames}</span></div>`;
+    vChart(vRes.series, vRes.beta_max, pred);
+  } catch (e) { vError(e.message); }
+}
+async function vRun(file) {
+  vError(''); $('v-pred').textContent = 'Reading frames…'; $('v-meas').textContent = '…';
+  try {
+    vData = await grabFrames(file, { onProgress: q => { $('v-pred').textContent = `Reading frames… ${Math.round(q * 100)}%`; } });
+    await vMeasure();
+  } catch (e) { vData = null; vError(e.message); $('v-pred').textContent = '—'; $('v-meas').textContent = '—'; }
+}
+async function vMeasure() {
+  if (!vData) return;
+  try {
+    const scale = Number($('vscale').value) / vData.scale, base = $('vbase').value ? Math.round(Number($('vbase').value) * vData.scale) : null;
+    vRes = analyseVideo(vData, Number($('vfps').value), scale, { baseline: base });
+    vOverlay(); vPredict();
+    $('v-truth').textContent = vTruth ? `Test video ground truth: D₀ ${vTruth.D0_mm} mm, V ${vTruth.V} m/s, β_max ${vTruth.beta_max}. Its β_max is an arbitrary test value, so the model may disagree with it.` : '';
+  } catch (e) { vRes = null; vError(e.message); $('v-pred').textContent = '—'; $('v-meas').textContent = '—'; }
+}
+$('vfile').onchange = () => { const f = $('vfile').files[0]; if (f) { vTruth = null; vRun(f); } };
+const vdz = $('vdrop');
+['dragenter', 'dragover'].forEach(ev => vdz.addEventListener(ev, e => { e.preventDefault(); vdz.classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => vdz.addEventListener(ev, e => { e.preventDefault(); vdz.classList.remove('over'); }));
+vdz.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) { vTruth = null; vRun(f); } });
+$('vsample').onclick = async () => { $('vfps').value = 5000; $('vscale').value = 0.03; $('vbase').value = ''; $('v-pred').textContent = 'Loading test video…'; vTruth = await fetch('./samples/impact_sample.truth.json').then(r => r.json()); vRun(await fetch('./samples/impact_sample.webm').then(r => r.blob())); };
+['vfps', 'vscale', 'vbase'].forEach(id => $(id).onchange = vMeasure);
+
+$('form').addEventListener('submit', e => e.preventDefault());
+$('fluid').onchange = () => { fluidNote(); run(); };
+$('surface').onchange = () => { mark(); run(); };
+$('d').oninput = run;
+$('vslide').oninput = () => { $('v').value = $('vslide').value; run(); };
+$('v').oninput = () => { $('vslide').value = $('v').value; run(); };
+init();
+</script>
+
+</body></html>
